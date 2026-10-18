@@ -3576,7 +3576,8 @@ def passive(m: Model, d: Data):
 
   gravity_enabled = not (m.opt.disableflags & DisableBit.GRAVITY)
   d.qfrc_gravcomp.zero_()
-  if gravity_enabled:
+  # as mj_gravcomp: skip when no body has gravcomp (the launch is nworld * nbody * nv threads)
+  if gravity_enabled and m.ngravcomp:
     wp.launch(
       _gravity_force,
       dim=(d.nworld, m.nbody - 1, m.nv),

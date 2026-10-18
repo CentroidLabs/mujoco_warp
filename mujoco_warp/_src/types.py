@@ -1129,6 +1129,7 @@ class Model:
     nmocap: number of mocap bodies
     nplugin: number of plugin instances
     nJmom: number of non-zeros in actuator_moment
+    ngravcomp: number of bodies with nonzero gravcomp
     npolygonmax: maximum number of verts per polygon
     nmeshdegmax: maximum number of polygons per vert
     nuserdata: number of custom user parameters
@@ -1664,6 +1665,7 @@ class Model:
   nmocap: int
   nplugin: int
   nJmom: int
+  ngravcomp: int
   npolygonmax: int
   nmeshdegmax: int
   nuserdata: int

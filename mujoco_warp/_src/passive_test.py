@@ -267,6 +267,35 @@ class PassiveTest(parameterized.TestCase):
     _assert_eq(d.qfrc_gravcomp.numpy()[0], mjd.qfrc_gravcomp, "qfrc_gravcomp")
     _assert_eq(d.qfrc_actuator.numpy()[0], mjd.qfrc_actuator, "qfrc_actuator")
 
+  def test_gravcomp_skipped_without_gravcomp_bodies(self):
+    """Tests that gravcomp set after compilation is ignored when ngravcomp is 0, as in MuJoCo."""
+    mjm, mjd, m, d = test_data.fixture(
+      xml="""
+      <mujoco>
+        <option gravity="1 2 3"/>
+        <worldbody>
+          <body>
+            <geom type="sphere" size=".1" pos="1 0 0"/>
+            <joint type="hinge" axis="0 1 0"/>
+          </body>
+        </worldbody>
+      </mujoco>
+    """,
+      qpos_noise=0.1,
+    )
+    self.assertEqual(mjm.ngravcomp, 0)
+    mjm.body_gravcomp[1] = 1.0
+    m.body_gravcomp.assign(mjm.body_gravcomp[None])
+    mujoco.mj_forward(mjm, mjd)
+
+    for arr in (d.qfrc_passive, d.qfrc_gravcomp):
+      arr.fill_(wp.inf)
+
+    mjw.passive(m, d)
+
+    _assert_eq(d.qfrc_gravcomp.numpy()[0], mjd.qfrc_gravcomp, "qfrc_gravcomp")
+    _assert_eq(d.qfrc_passive.numpy()[0], mjd.qfrc_passive, "qfrc_passive")
+
   def test_polynomial_stiffness(self):
     """Tests polynomial stiffness."""
     xml = """
