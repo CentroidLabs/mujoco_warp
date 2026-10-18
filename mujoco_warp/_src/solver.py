@@ -3460,7 +3460,8 @@ def _update_gradient(m: types.Model, d: types.Data, ctx: SolverContext, compact:
       # of SMs on the GPU. We can now query the SM count:
       # https://github.com/NVIDIA/warp/commit/f3814e7e5459e5fd13032cf0fddb3daddd510f30
 
-      if wp.get_device().is_cuda:
+      # any GPU (CUDA SMs, Apple GPU cores); the serial fallback below is for the CPU only
+      if not wp.get_device().is_cpu:
         sm_count = wp.get_device().sm_count
 
         # Here we assume one block has 256 threads. We use a factor of 6, which
