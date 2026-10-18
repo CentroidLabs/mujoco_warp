@@ -123,6 +123,17 @@ def _assert_efc_eq(mjm, m, d, mjd, nefc, name, nv, nworld, tol=_TOLERANCE):
     np.testing.assert_allclose(d_sorted, mjd_sorted_type, err_msg=f"mismatch: {name}_type (world {w})")
 
 
+
+def _match_rows(ref_pos, ref_J, pos, J):
+  """Index into (pos, J) pairing each reference row with its closest unused row."""
+  cost = np.abs(ref_pos[:, None] - pos[None, :]) + np.abs(ref_J[:, None, :] - J[None, :, :]).max(axis=2)
+  order = np.full(len(ref_pos), -1)
+  used = np.zeros(len(pos), dtype=bool)
+  for i in np.argsort(cost.min(axis=1)):  # most certain pairs first
+    j = int(np.argmin(np.where(used, np.inf, cost[i])))
+    order[i], used[j] = j, True
+  return order
+
 class FlexKinematicsTest(parameterized.TestCase):
   """Tests for flex kinematics parity with MuJoCo."""
 
@@ -480,15 +491,6 @@ class FlexConstraintTest(parameterized.TestCase):
     if nefc == 0:
       return
 
-    # Compare residuals
-    for w in range(nworld):
-      np.testing.assert_allclose(
-        d.efc.pos.numpy()[w, :nefc],
-        mjd.efc_pos[:nefc],
-        atol=atol,
-        err_msg=f"efc_pos mismatch for world {w}",
-      )
-
     # Compare Jacobians
     nv = mjm.nv
     if mujoco.mj_isSparse(mjm):
@@ -516,8 +518,18 @@ class FlexConstraintTest(parameterized.TestCase):
       else:
         warp_efc_J = d.efc.J.numpy()[w, :nefc, :nv]
 
+      # rows are appended in parallel, so their order can differ from MuJoCo's: pair each MuJoCo
+      # row with the closest unused Warp row before comparing
+      warp_efc_pos = d.efc.pos.numpy()[w, :nefc]
+      order = _match_rows(mjd.efc_pos[:nefc], mj_efc_J, warp_efc_pos, warp_efc_J)
       np.testing.assert_allclose(
-        warp_efc_J,
+        warp_efc_pos[order],
+        mjd.efc_pos[:nefc],
+        atol=atol,
+        err_msg=f"efc_pos mismatch for world {w}",
+      )
+      np.testing.assert_allclose(
+        warp_efc_J[order],
         mj_efc_J,
         atol=0.01,
         err_msg=f"efc_J mismatch for world {w}",
