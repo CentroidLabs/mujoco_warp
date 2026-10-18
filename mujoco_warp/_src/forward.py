@@ -1459,6 +1459,11 @@ def fwd_position(m: Model, d: Data, factorize: bool = True):
     else:
       collision_driver.collision(m, d)
 
+  if m.neq:
+    # make_constraint folds a Jdot*v term into connect/weld aref (#1294) using cvel and
+    # cdof_dot, which fwd_velocity computes later. Without this they come from the previous
+    # call: lagged by one step while stepping, and wrong after a state reset.
+    smooth.com_vel(m, d)
   constraint.make_constraint(m, d)
 
   if sleep_enabled:
