@@ -2979,9 +2979,12 @@ def _cholesky_factorize_solve(
       block_dim=m.block_dim.update_gradient_cholesky if wp.get_device().is_cuda else 32,
     )
   else:
+    # Off CUDA 8x8 tiles factorize faster than 16x16 (Apple M4 Pro, 8192 worlds: 1.6x at nv 72-81,
+    # 1.4x at 129, even at 200); nv_pad is a multiple of 16, so either tile divides it.
+    tile = types.TILE_SIZE_JTDAJ_DENSE if wp.get_device().is_cuda else 8
     if skip_unchanged:
       wp.launch_tiled(
-        _update_gradient_cholesky_blocked_skip_unchanged(types.TILE_SIZE_JTDAJ_DENSE, m.nv_pad, m.nv, skip_noflip),
+        _update_gradient_cholesky_blocked_skip_unchanged(tile, m.nv_pad, m.nv, skip_noflip),
         dim=d.nworld,
         inputs=[
           ctx.done,
@@ -3000,7 +3003,7 @@ def _cholesky_factorize_solve(
       )
     else:
       wp.launch_tiled(
-        _update_gradient_cholesky_blocked(types.TILE_SIZE_JTDAJ_DENSE, m.nv_pad, m.nv),
+        _update_gradient_cholesky_blocked(tile, m.nv_pad, m.nv),
         dim=d.nworld,
         inputs=[ctx.done, ctx.grad.reshape(shape=(d.nworld, ctx.grad.shape[1], 1)), ctx.h, ctx.hfactor],
         outputs=[
